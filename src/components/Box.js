@@ -17,11 +17,14 @@ export default function Box({ boxId, text, checked, onToggle }) {
       )}
       <span
         className="
-          block
+          block text-center
           whitespace-normal break-words
-          leading-tight
+          leading-snug
           px-1
-          text-[clamp(0.68rem,2.2vw,1rem)]
+          text-[11px]        /* very small phones */
+          sm:text-xs         /* ≥640px */
+          md:text-sm         /* ≥768px */
+          lg:text-base       /* ≥1024px */
         "
       >
         {text}
