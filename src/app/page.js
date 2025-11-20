@@ -4,6 +4,8 @@ import Header from '@/components/Header';
 import Card from '@/components/Card';
 import Rules from '@/components/Rules';
 import WinButton from "@/components/ui/WinButton";
+import Leaderboard from '@/components/Leaderboard';
+import LeaderboardButton from '@/components/ui/LeaderboardButton';
 
 
 function HomePage() {
@@ -17,13 +19,14 @@ function HomePage() {
         onFirstWin={() => setHasEverWon(true)}
         disablePopover={showWinProof}
       />
+      <LeaderboardButton />
       
       {hasEverWon && (
         <WinButton 
           open={showWinProof}
           onOpenChange={setShowWinProof}
           buttonText="Winner!"
-          proofTExt={"I've won Bingo!"}
+          proofText={"I've won Bingo!"}
         />
       )}
 

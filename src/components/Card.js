@@ -1,3 +1,4 @@
+// Card.jsx
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import Box from '@/components/Box';
@@ -14,7 +15,7 @@ function makeBoxes(size = 5, texts = []) {
         n,
         boxId: `r${r + 1}c${c + 1}`,
         text,
-        checked: i === 12 && text === 'Free Space', // center prechecked if Free Space
+        checked: i === 12 && text === 'Free Space', // center pre-checked if Free Space
         row: r + 1,
         col: c + 1,
       });
@@ -24,57 +25,86 @@ function makeBoxes(size = 5, texts = []) {
   return boxes;
 }
 
+function hashTexts(arr) {
+  // cheap hash to invalidate stale saved state when prompts change
+  const s = JSON.stringify(arr || []);
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  return String(h);
+}
+
 export default function Card({ onFirstWin, disablePopover = false }) {
   const size = 5;
+  const day = 'day1'; // keep consistent across routes
+  const STORAGE_KEY = `bingo:${day}:checked`;
+  const TEXTS_KEY = `bingo:${day}:textsHash`;
 
-  // Start with placeholders; we'll replace after fetch:
   const [boxes, setBoxes] = useState(() => makeBoxes(size));
   const [winner, setWinner] = useState(false);
   const [showPopover, setShowPopover] = useState(false);
+
   const hasShownPopoverRef = useRef(false);
   const notifiedFirstWinRef = useRef(false);
+  const promptsReadyRef = useRef(false); // don't persist until prompts loaded
 
-  // 🔑 Fetch /public/prompts.json and build the 25 texts (24 + "Free Space" at center)
+  // Load prompts.json and restore saved checks
   useEffect(() => {
     let alive = true;
 
-    fetch('/prompts.json', { cache: 'no-store' })
-      .then((r) => r.json())
-      .then((data) => {
-        if (!alive) return;
+    (async () => {
+      try {
+        const res = await fetch('/prompts.json', { cache: 'no-store' });
+        const data = await res.json();
 
-        // pick the set you want (day1 here)
-        const day = 'day1'; // change to 'day2' or derive elsewhere
+        if (!alive) return;
 
         const src = Array.isArray(data?.[day]) ? data[day] : [];
         const first24 = src.slice(0, 24);
-
-        // build exactly 25 entries with center = "Free Space"
         const full25 = [
           ...first24.slice(0, 12),
           'Free Space',
           ...first24.slice(12),
         ];
 
-        // sanity checks (helps debug)
-        // console.log('full25 length:', full25.length, full25);
+        const textsHash = hashTexts(full25);
+        const savedHash = typeof window !== 'undefined' ? localStorage.getItem(TEXTS_KEY) : null;
+        const savedChecked = typeof window !== 'undefined'
+          ? JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')
+          : [];
 
-        setBoxes(makeBoxes(size, full25));
-      })
-      .catch((err) => {
-        // console.error('Failed to load prompts.json', err);
-        // leave placeholders
-      });
+        // If prompts changed, clear saved checks to avoid mismatches
+        if (savedHash && savedHash !== textsHash) {
+          localStorage.removeItem(STORAGE_KEY);
+        }
+
+        // Build boxes, then overlay saved checked state
+        const fresh = makeBoxes(size, full25);
+        const savedSet = new Set(savedChecked);
+        const restored = fresh.map(b =>
+          savedSet.has(b.boxId) ? { ...b, checked: true } : b
+        );
+
+        setBoxes(restored);
+        promptsReadyRef.current = true;
+
+        // Save prompts hash so future loads can validate
+        localStorage.setItem(TEXTS_KEY, textsHash);
+      } catch {
+        // leave placeholders if fetch fails
+      }
+    })();
 
     return () => { alive = false; };
-  }, [size]);
+  }, [size, day]);
 
-  function onToggle(boxId) {
-    setBoxes(prev =>
-      prev.map(b => (b.boxId === boxId ? { ...b, checked: !b.checked } : b))
-    );
-  }
+  // Persist checked boxes whenever they change (after prompts are ready)
+  useEffect(() => {
+    if (!promptsReadyRef.current) return;
+    const checkedIds = boxes.filter(b => b.checked).map(b => b.boxId);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(checkedIds));
+  }, [boxes]);
 
+  // Recompute winner and optionally show the popover
   useEffect(() => {
     const doneArr = boxes.filter(b => b.checked).map(b => b.n);
     const won = checkWin(doneArr);
@@ -91,6 +121,28 @@ export default function Card({ onFirstWin, disablePopover = false }) {
       }
     }
   }, [boxes, onFirstWin, disablePopover]);
+
+  function onToggle(boxId) {
+    // compute next state first (no side-effects here)
+    const next = boxes.map(b => (b.boxId === boxId ? { ...b, checked: !b.checked } : b));
+    setBoxes(next);
+
+    // OPTIONAL: if you still log to Redis, send exactly one event per toggle
+    const before = boxes.find(b => b.boxId === boxId)?.checked;
+    const after = !before;
+    const toggled = next.find(b => b.boxId === boxId);
+    fetch('/api/click', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
+      body: JSON.stringify({
+        boxId,
+        promptText: toggled?.text,
+        day,
+        action: after ? 'check' : 'uncheck',
+      }),
+    }).catch(() => {});
+  }
 
   return (
     <div className="mx-auto max-w-[min(92vw,720px)]">
@@ -113,6 +165,15 @@ export default function Card({ onFirstWin, disablePopover = false }) {
         </div>
       </div>
 
+      {winner && (
+        <div className="mt-4 text-center">
+          {/* A small persistent banner/button so it's visible after navigation */}
+          <span className="inline-block rounded bg-green-100 text-green-800 px-3 py-1">
+            Bingo achieved! 🎉
+          </span>
+        </div>
+      )}
+
       {showPopover && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-lg shadow-xl px-6 py-4 text-center">
@@ -133,6 +194,8 @@ export default function Card({ onFirstWin, disablePopover = false }) {
                   setBoxes(prev => prev.map(b => ({ ...b, checked: false })));
                   setShowPopover(false);
                   setWinner(false);
+                  // also clear saved checks
+                  localStorage.removeItem(STORAGE_KEY);
                 }}
               >
                 Reset Card
