@@ -3,8 +3,8 @@
 function Header() {
   return (
     <main>
-      <h1 className ="m-0 py-5 text-center">ECS Diversity and Leadership Summit</h1>
-        <h2 className ="m-0 py-2 text-center">Bingo</h2>
+      <h1 className ="py-5">ECS Diversity and Leadership Summit</h1>
+        <h2 className ="py-2">Bingo</h2>
     </main>
   )
 }

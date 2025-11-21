@@ -16,8 +16,6 @@
 
 /src/components/ui : add reusable user-interface components here.
 - WinButton.js : Small, self-contained button + popover that displays “I’ve won Bingo!” proof.
-- ResetButton.js : Not used, but keeping for potential future use. A button that resets the game board, but does not interfere with Win Proof state.
-
 
 /src/utils: add helper functions and logic here.
 - checkWin.js : Function that encapsulates all winning line combinations; reusable in tests or backend
