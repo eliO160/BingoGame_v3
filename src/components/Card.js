@@ -58,6 +58,9 @@ const Card = forwardRef(function Card(
 
   const [boxes, setBoxes] = useState(() => makeBoxes(size));
   const [winner, setWinner] = useState(false);
+  const [expandedBoxId, setExpandedBoxId] = useState(null); 
+  
+  const cardRef = useRef(null);
 
   const notifiedFirstWinRef = useRef(false);
   const promptsReadyRef = useRef(false);
@@ -115,6 +118,7 @@ const Card = forwardRef(function Card(
         localStorage.removeItem(STORAGE_KEY);
         onWinChange?.(false);
         notifiedFirstWinRef.current = false;
+        setExpandedBoxId(null); //collapse any expanded prompt
       },
     }),
     [STORAGE_KEY, onWinChange]
@@ -193,6 +197,25 @@ const Card = forwardRef(function Card(
     }
   }, [boxes, onFirstWin, onWinChange]);
 
+  // 5) click outside bocx to deselect expanded box handler
+  useEffect(() => {
+    function handleDocumentClick(e) {
+      if (!cardRef.current) return;
+
+      // If click is OUTSIDE the card and something is expanded, collapse it
+      if (expandedBoxId !== null && !cardRef.current.contains(e.target)) {
+        setExpandedBoxId(null);
+      }
+    }
+
+    document.addEventListener('click', handleDocumentClick);
+
+    return () => {
+      document.removeEventListener('click', handleDocumentClick);
+    };
+  }, [expandedBoxId]);
+
+
   function onToggle(boxId) {
     // 🔹 Always update UI so they can keep playing locally
     const next = boxes.map(b =>
@@ -234,20 +257,34 @@ const Card = forwardRef(function Card(
   }
 
   return (
-    <div className="mx-auto max-w-[min(92vw,720px)]">
+    <div
+      ref={cardRef} 
+      className="mx-auto max-w-[min(92vw,720px)]"
+    >
       <div className="pl-2 sm:pl-4">
-        <div className="grid grid-cols-5 grid-rows-5 gap-px bg-gray-300 p-px rounded">
+        <div     
+          className="grid grid-cols-5 grid-rows-5 gap-px bg-gray-300 p-px rounded"
+          onClick={() => {
+            if (expandedBoxId !== null) {
+              setExpandedBoxId(null);   // 👈 tapping background collapses expanded box
+            }
+          }}
+        >
           {boxes.map(b => (
             <div
               key={b.boxId}
               style={{ gridRowStart: b.row, gridColumnStart: b.col }}
-              className="bg-white aspect-square"
+              className="bg-white aspect-[4/5] sm:aspect-square"
             >
               <Box
                 boxId={b.boxId}
                 text={b.text}
                 checked={b.checked}
                 onToggle={onToggle}
+                isExpanded={expandedBoxId === b.boxId}
+                anyExpanded={expandedBoxId != null}
+                onRequestExpand={id => setExpandedBoxId(id)}
+                onRequestCollapse={() => setExpandedBoxId(null)}
               />
             </div>
           ))}
