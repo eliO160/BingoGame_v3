@@ -107,8 +107,6 @@ export default function Leaderboard({ limit = 25 }) {
           <CircleArrowLeft className="h-4 w-4" aria-hidden="true" />
           <span>Back</span>
         </button>
-
-        <h1 className="text-xl font-bold">Leaderboard</h1>
       </div>
 
       {err && <div className="text-red-600 mb-2 text-sm">{err}</div>}

@@ -1,4 +1,3 @@
-// src/lib/day.js
 // Single source of truth for "what day is active?"
 
 const PT_TZ = 'America/Los_Angeles';
