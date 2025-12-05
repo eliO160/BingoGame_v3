@@ -2,19 +2,19 @@
 
 import { Check } from "lucide-react";
 
-export default function Box({
-  boxId,
-  text,
-  checked,
-  onToggle,
-  isExpanded = false,
-  anyExpanded = false,
-  onRequestExpand,
-  onRequestCollapse,
+export default function Box({ //prop destructuring from parent, Card
+  boxId, // unique identifier for this box
+  text, // prompt text for this box
+  checked, // whether this box is selected/green
+  onToggle, // callback to toggle the checked state (lives in Card)
+  isExpanded = false, // whether this box is currently expanded, default False
+  anyExpanded = false, // whether any box is currently expanded, default False
+  onRequestExpand, // callback to request parent expand this box
+  onRequestCollapse, // callback to request parent collapse any expanded box
 }) {
-
+//tap handling logic
   function handleClick(e) {
-    e.stopPropagation(); // 👈 prevent the card's onClick from firing
+    e.stopPropagation(); //prevent the card's onClick from firing
 
     // No box expanded yet → first tap expands this one
     if (!isExpanded && !anyExpanded) {
@@ -36,13 +36,13 @@ export default function Box({
     }
   }
 
-
+//css classes for collapsed state text clamping
   const collapsedClampClasses =
     "overflow-hidden [display:-webkit-box] [-webkit-line-clamp:5] [-webkit-box-orient:vertical] [text-overflow:ellipsis]";
 
   return (
     <button
-      onClick={handleClick}
+      onClick={handleClick} // handle tap/clicks
       className={`
         relative w-full h-full
         p-2 sm:p-3 md:p-4
